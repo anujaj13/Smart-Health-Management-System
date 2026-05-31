@@ -1,0 +1,53 @@
+# Dockerfile.frontend - Streamlit Frontend
+# Optimized for frontend dependencies (Streamlit, Plotly, minimal LLM support)
+
+FROM python:3.12-slim AS builder
+
+# Install uv for faster dependency installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /app
+
+# Copy dependency files first (maximize layer caching)
+COPY pyproject.toml uv.lock ./
+
+# Install ONLY frontend dependencies (Streamlit, Plotly, visualization tools)
+RUN uv sync --frozen --no-install-project --no-dev --only-group=frontend
+
+
+# --- Runtime Stage ---
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy pre-built virtual environment from builder stage
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/ui /app/.streamlit
+
+# Create non-root user for security
+RUN useradd -m -u 1000 healthlink && \
+    chown -R healthlink:healthlink /app
+USER healthlink
+
+EXPOSE 8501
+
+# Start Streamlit app
+CMD ["streamlit", "run", "ui/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]

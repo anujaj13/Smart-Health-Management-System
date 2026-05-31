@@ -1,0 +1,64 @@
+# Multi-stage Dockerfile for HealthLink
+# Optimized for Google Cloud Run deployment using uv
+
+# --- Stage 1: Build & Dependency Installation ---
+FROM python:3.12-slim AS builder
+
+# Install uv binary by copying it from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set uv specific environment variables
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /app
+
+# Copy lockfiles first to maximize Docker layer caching
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies into a localized virtual environment (.venv)
+# --no-install-project skips installing the current package code, focusing only on deps
+RUN uv sync --frozen --no-install-project --no-dev --only-group=api
+
+
+# --- Stage 2: Final Runtime Image ---
+FROM python:3.12-slim
+
+# Set runtime environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000 \
+    PATH="/app/.venv/bin:$PATH"
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy the pre-built virtual environment from the builder stage
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs
+
+# Create non-root user for production security
+RUN useradd -m -u 1000 healthlink && \
+    chown -R healthlink:healthlink /app
+USER healthlink
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+# Run application using the uvicorn binary inside our synced virtual environment
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
