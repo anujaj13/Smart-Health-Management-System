@@ -12,8 +12,10 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT }}
   REGION: asia-south1
+  REGISTRY_REGION: asia-south1
   SERVICE_NAME: healthlink
-  IMAGE_NAME: asia-south1.pkg.dev/${{ secrets.GCP_PROJECT }}/healthlink/healthlink
+  # CRITICAL FIX: Use correct regional Docker registry domain
+  IMAGE_NAME: asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/healthlink/healthlink
 
 jobs:
   build-and-deploy:
@@ -38,10 +40,10 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # FIX: Use consistent region variable instead of hardcoded value
+      # CRITICAL FIX: Use correct regional Docker registry domain
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}.pkg.dev
+          gcloud auth configure-docker ${{ env.REGISTRY_REGION }}-docker.pkg.dev
           
       # FIX: Changed us-central1 to use env.REGION
       - name: Create Artifact Registry repository if needed
@@ -59,7 +61,7 @@ jobs:
       # FIX: Added explicit auth refresh before push, better error handling
       - name: Push Docker image
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}.pkg.dev --quiet
+          gcloud auth configure-docker ${{ env.REGISTRY_REGION }}-docker.pkg.dev --quiet
           docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
           if [ $? -ne 0 ]; then
             echo "Failed to push image with SHA tag"
@@ -124,10 +126,10 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # FIX: Consistent region usage
+      # FIX: Use correct regional Docker registry domain
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}.pkg.dev
+          gcloud auth configure-docker ${{ env.REGISTRY_REGION }}-docker.pkg.dev
 
       - name: Build Docker image for UI
         run: |
@@ -137,7 +139,7 @@ jobs:
       # FIX: Added auth refresh and error handling for push steps
       - name: Push Docker image to Artifact Registry
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}.pkg.dev --quiet
+          gcloud auth configure-docker ${{ env.REGISTRY_REGION }}-docker.pkg.dev --quiet
           docker push ${{ env.IMAGE_NAME }}-ui:${{ github.sha }}
           if [ $? -ne 0 ]; then
             echo "Failed to push UI image with SHA tag"
