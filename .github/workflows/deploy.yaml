@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT }}
   REGION: asia-south1
   SERVICE_NAME: healthlink
-  IMAGE_NAME: asia-south1.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/healthlink/healthlink
+  IMAGE_NAME: asia-south1.pkg.dev/${{ secrets.GCP_PROJECT }}/healthlink/healthlink
 
 jobs:
   build-and-deploy:
