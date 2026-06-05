@@ -69,6 +69,57 @@ frontend = [
     "tenacity>=8.2.0,<9.0.0",
 ]
 
+all = [
+# LangChain & AI
+    "langchain==1.2.18",
+    "langchain-core>=1.2.0,<2.0.0",
+    "langchain-text-splitters>=0.1.0",
+    "langchain-google-genai>=0.1.0",
+    "langchain-huggingface>=1.2.2",
+    # Vector DB & Storage
+    "pinecone-client>=3.0.0,<4.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
+    "aiosqlite>=0.19.0,<1.0.0",
+    # ML/Embeddings (heavier packages - only needed for API)
+    "numpy>=2.0.0,<3.0.0",
+    "pandas>=2.1.0,<3.0.0",
+    "sentence-transformers>=5.5.1",
+    # Web Framework & Server
+    "fastapi>=0.109.0,<1.0.0",
+    "uvicorn[standard]>=0.27.0,<1.0.0",
+    "python-multipart>=0.0.6",
+    # Data Validation
+    "pydantic>=2.5.0,<3.0.0",
+    "pydantic-settings>=2.1.0,<3.0.0",
+    # Configuration & HTTP
+    "python-dotenv>=1.0.0,<2.0.0",
+    "httpx>=0.26.0,<1.0.0",
+    # Utilities
+    "tenacity>=8.2.0,<9.0.0",
+# Data Processing & Visualization
+    "numpy>=2.0.0,<3.0.0",
+    "pandas>=2.1.0,<3.0.0",
+    "streamlit>=1.28.0,<2.0.0",
+    "plotly>=5.17.0,<6.0.0",
+    # LLM communication
+    "langchain==1.2.18",
+    "langchain-core>=1.2.0,<2.0.0",
+    "langchain-google-genai>=0.1.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    # Web Framework & Server
+    "fastapi>=0.109.0,<1.0.0",
+    "uvicorn[standard]>=0.27.0,<1.0.0",
+    "python-multipart>=0.0.6",
+    # Data Validation
+    "pydantic>=2.5.0,<3.0.0",
+    "pydantic-settings>=2.1.0,<3.0.0",
+    # Configuration & HTTP
+    "python-dotenv>=1.0.0,<2.0.0",
+    "httpx>=0.26.0,<1.0.0",
+    # Utilities
+    "tenacity>=8.2.0,<9.0.0",
+]
+
 # Development dependencies
 dev = [
     "pytest>=7.4.0,<8.0.0",
