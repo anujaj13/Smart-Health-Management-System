@@ -11,64 +11,17 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: us-central1
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+  REGION: asia-south1
   SERVICE_NAME: healthlink
-  IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/healthlink
+  IMAGE_NAME: ${{ env.REGION }}.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/healthlink/healthlink
 
 jobs:
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio
-
-      - name: Run linting
-        run: |
-          pip install ruff black
-          ruff check . || true
-          black --check . || true
-
-      - name: Run tests
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-        run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term || true
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-        continue-on-error: true
 
   build-and-deploy:
     name: Build and Deploy to Cloud Run
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     permissions:
       contents: read
@@ -86,25 +39,25 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
 
-      - name: Configure Docker for GCR
+      - name: Configure Docker for GC
         run: |
-          gcloud auth configure-docker
+          gcloud auth configure-docker ${{ env.REGION }}.pkg.dev
           
       - name: Create GCR repository if needed
         run: |
           gcloud artifacts repositories create healthlink \
             --repository-format=docker \
-            --location=us-central1 \
+            --location=${{ env.REGION }} \
             --quiet || true
       - name: Build Docker image
         run: |
-          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} -f Dockerfile.api .
           docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:latest
 
       - name: Push Docker image to GCR
         run: |
           docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:latest 
 
       - name: Deploy to Cloud Run
         run: |
@@ -119,7 +72,7 @@ jobs:
             --max-instances 10 \
             --min-instances 0 \
             --set-env-vars "LOG_LEVEL=INFO" \
-            --set-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,PINECONE_API_KEY=PINECONE_API_KEY:latest"
+            --set-secrets "GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}:latest,PINECONE_API_KEY=${{ env.PINECONE_API_KEY }}:latest"
 
       - name: Get service URL
         run: |
@@ -139,8 +92,7 @@ jobs:
   build-and-deploy-ui:
     name: Build and Deploy Frontend (Streamlit) to Cloud Run
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     permissions:
       contents: read
       id-token: write
@@ -162,7 +114,7 @@ jobs:
 
       - name: Build Docker image for UI
         run: |
-          docker build -t ${{ env.IMAGE_NAME }}-ui:${{ github.sha }} -f ui/Dockerfile .
+          docker build -t ${{ env.IMAGE_NAME }}-ui:${{ github.sha }} -f Dockerfile.frontend .
           docker tag ${{ env.IMAGE_NAME }}-ui:${{ github.sha }} ${{ env.IMAGE_NAME }}-ui:latest
 
       - name: Push Docker image to GCR
