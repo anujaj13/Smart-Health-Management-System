@@ -1,5 +1,6 @@
 # Dockerfile.frontend - Streamlit Frontend
 # Optimized for frontend dependencies (Streamlit, Plotly, minimal LLM support)
+# FIXED: Now respects Cloud Run's PORT environment variable
 
 FROM python:3.12-slim AS builder
 
@@ -21,9 +22,12 @@ RUN uv sync --frozen --no-install-project --no-dev --only-group=frontend
 # --- Runtime Stage ---
 FROM python:3.12-slim
 
+# FIXED: Set PORT=8080 (Cloud Run default)
+# Cloud Run will override this with PORT=8080 if not specified
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    PORT=8080
 
 # Install minimal system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -47,7 +51,9 @@ RUN useradd -m -u 1000 healthlink && \
     chown -R healthlink:healthlink /app
 USER healthlink
 
-EXPOSE 8501
+# Expose port (Cloud Run will override, but good practice)
+EXPOSE 8080
 
-# Start Streamlit app
-CMD ["streamlit", "run", "ui/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# FIXED: Use $PORT environment variable instead of hardcoded 8501
+# Streamlit needs special configuration for Cloud Run
+CMD ["sh", "-c", "streamlit run ui/streamlit_app.py --server.port=${PORT:-8080} --server.address=0.0.0.0 --logger.level=info"]
